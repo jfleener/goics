@@ -20,7 +20,7 @@ const (
 // Errors
 var (
 	ErrCalendarNotFound = errors.New("vCalendar not found")
-	ErrParseEndCalendar = errors.New("wrong format END:VCALENDAR not Found")
+	ErrParseEndCalendar = errors.New("wrong format END:VCALENDAR not found")
 )
 
 type decoder struct {

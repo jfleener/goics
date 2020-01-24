@@ -1,6 +1,7 @@
 package goics
 
 import (
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -11,6 +12,8 @@ import (
 const (
 	CRLF   = "\r\n"
 	CRLFSP = "\r\n "
+
+	ICSPropertyRecurrenceRule     = "RRULE"
 )
 
 // NewComponent returns a new Component and setups
@@ -45,7 +48,12 @@ func (c *Component) Write(w *ICalEncode) {
 	sort.Strings(keys)
 	for _, key := range keys {
 		val := c.Properties[key]
-		w.WriteLine(WriteStringField(key, val))
+		switch key {
+		case ICSPropertyRecurrenceRule:
+			w.WriteLine(WriteStringField(key, val, false))
+		default:
+			w.WriteLine(WriteStringField(key, val, true))
+		}
 	}
 
 	for _, xc := range c.Elements {
@@ -99,22 +107,34 @@ var LineSize = 75
 // continuation lines start with a space.
 func (enc *ICalEncode) WriteLine(s string) {
 	if len(s) <= LineSize {
-		io.WriteString(enc.w, s)
+		_, err := io.WriteString(enc.w, s)
+		if err != nil {
+			// TODO: Handle this
+		}
 		return
 	}
 
 	// The first line does not begin with a space.
 	firstLine := truncateString(s, LineSize-len(CRLF))
-	io.WriteString(enc.w, firstLine+CRLF)
+	_, err := io.WriteString(enc.w, firstLine+CRLF)
+	if err != nil {
+		// TODO: Handle this
+	}
 
 	// Reserve three bytes for space + CRLF.
 	lines := splitLength(s[len(firstLine):], LineSize-len(CRLFSP))
 	for i, line := range lines {
 		if i < len(lines)-1 {
-			io.WriteString(enc.w, " "+line+CRLF)
+			_, err = io.WriteString(enc.w, " "+line+CRLF)
+			if err != nil {
+				// TODO: Handle this
+			}
 		} else {
 			// This is the last line, don't append CRLF.
-			io.WriteString(enc.w, " "+line)
+			_, err = io.WriteString(enc.w, " "+line)
+			if err != nil {
+				// TODO: Handle this
+			}
 		}
 	}
 }
@@ -135,15 +155,17 @@ func FormatDateTime(key string, val time.Time) (string, string) {
 }
 
 // WriteStringField UID:asdfasdfаs@dfasdf.com
-func WriteStringField(key string, val string) string {
-	return strings.ToUpper(key) + ":" + quoteString(val) + CRLF
+func WriteStringField(key string, val string, escapeValChars bool) string {
+	if escapeValChars {
+		return fmt.Sprintf("%v:%v%v", strings.ToUpper(key), escapeChars(val), CRLF)
+	}
+	return fmt.Sprintf("%v:%v%v", strings.ToUpper(key), val, CRLF)
 }
 
-func quoteString(s string) string {
+func escapeChars(s string) string {
 	s = strings.Replace(s, "\\", "\\\\", -1)
 	s = strings.Replace(s, ";", "\\;", -1)
 	s = strings.Replace(s, ",", "\\,", -1)
 	s = strings.Replace(s, "\n", "\\n", -1)
-
 	return s
 }
